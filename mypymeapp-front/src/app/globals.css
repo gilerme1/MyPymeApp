@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  
+  --background-dark: #000000;
+  --foreground-dark: #FFFFFF;
+  --card-dark: #111111;
+  --primary-dark: #FFFF01;
+  --button-text-dark: #000000;
+  --border-dark: #27272A;
+  --background-light: #F3F4F6;
+  --foreground-light: #111827;
+  --card-light: #FFFFFF;
+  --primary-light: #0055A4;
+  --button-text-light: #FFFFFF;
+  --border-light: #E5E7EB;
+}
+
+
+body {
+  --background: var(--background-light);
+  --foreground: var(--foreground-light);
+  --card: var(--card-light);
+  --primary: var(--primary-light);
+  --button-text: var(--button-text-light);
+  --border: var(--border-light);
+
+  color: var(--foreground);
+  background: var(--background);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+html.dark body {
+  --background: var(--background-dark);
+  --foreground: var(--foreground-dark);
+  --card: var(--card-dark);
+  --primary: var(--primary-dark);
+  --button-text: var(--button-text-dark);
+  --border: var(--border-dark);
+}
+
+
+.bg-background { background-color: var(--background); }
+.text-foreground { color: var(--foreground); }
+.bg-card { background-color: var(--card); }
+.text-primary { color: var(--primary); }
+.border-primary { border-color: var(--primary); }
+.bg-primary { background-color: var(--primary); }
+.text-button-text { color: var(--button-text); }
+.border-border { border-color: var(--border); }
+
+.hover\:bg-primary:hover { background-color: var(--primary); }
+.hover\:text-primary:hover { color: var(--primary); }
+.hover\:text-button-text:hover { color: var(--button-text); }
+
+@keyframes animated-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 2px var(--primary), 0 0 4px var(--primary), 0 0 6px var(--primary), inset 0 0 2px var(--primary);
+  }
+  50% {
+    box-shadow: 0 0 4px var(--primary), 0 0 8px var(--primary), 0 0 12px var(--primary), inset 0 0 4px var(--primary);
+  }
+}
+
+.animate-neon-pulse {
+  animation: neon-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes rgb-border-glow {
+    0% { box-shadow: 0 0 5px #38003c, 0 0 10px #38003c; }
+    25% { box-shadow: 0 0 5px #00ff85, 0 0 10px #00ff85; }
+    50% { box-shadow: 0 0 5px #03a9f4, 0 0 10px #03a9f4; }
+    75% { box-shadow: 0 0 5px #ff005a, 0 0 10px #ff005a; }
+    100% { box-shadow: 0 0 5px #38003c, 0 0 10px #38003c; }
+}

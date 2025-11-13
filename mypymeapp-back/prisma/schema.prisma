@@ -1,0 +1,469 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// ================================
+/// Core / Usuarios / Autenticación
+/// ================================
+model User {
+  id                String              @id @default(uuid())
+  name              String
+  email             String              @unique
+  passwordHash      String
+  avatarUrl         String?
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @default(now()) @updatedAt
+  deletedAt         DateTime?           // Soft delete - fecha de eliminación
+
+  emailVerification EmailVerification[]
+  oauth             OAuthAccount[]
+  passwordReset     PasswordReset[]
+  sessions          Session[]
+  companies         UserCompany[]
+  transactions      Transaction[]
+  tickets           Ticket[]
+  ticketMessages    TicketMessage[]
+  admin             Admin?              // Relación opcional con Admin
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  ip               String?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OAuthAccount {
+  id             String        @id @default(cuid())
+  userId         String
+  provider       OAuthProvider
+  providerUserId String
+  accessToken    String?
+  refreshToken   String?
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerUserId])
+}
+
+/// ================================
+/// Company / Configuración
+/// ================================
+model Company {
+  id              String            @id @default(uuid())
+  name            String            @unique
+  logoFileId      String?
+  createdAt       DateTime          @default(now())
+  mail            String            @unique
+  pais            String
+  passwordHash    String
+  razonSocial     String
+  rubroPrincipal  String
+  rut_Cuit        String            @unique
+
+  categories          Category[]
+  settings            CompanySettings?
+  CompanySupplier     CompanySupplier[]
+  products            Product[]
+  StockMovements      StockMovements[]
+  members             UserCompany[]
+  customers           Customer[]
+  transactions        Transaction[]
+  invoices            Invoice[]
+  orders              Order[]
+  subscriptionStatus  SubscriptionStatus @default(FREE)
+  subscriptionEndDate DateTime?
+}
+
+model CompanySettings {
+  companyId     String  @id
+  invoicePrefix String  @default("S-")
+  bajoStock     Int     @default(5)
+  tema          String?
+  company       Company @relation(fields: [companyId], references: [id])
+}
+
+model UserCompany {
+  id        String    @id @default(uuid())
+  userId    String
+  companyId String
+  role      Role
+  createdAt DateTime  @default(now())
+  
+  company   Company   @relation(fields: [companyId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, companyId])
+}
+
+/// ================================
+/// Productos / Inventario
+/// ================================
+model Category {
+  id        String     @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime   @default(now())
+  company   Company    @relation(fields: [companyId], references: [id])
+  products  Product[]
+  suppliers Supplier[]
+
+  @@unique([companyId, name])
+}
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  sku         String
+  barcode     String?
+  description String?
+  price       Float
+  cost        Float?
+  qty         Int       @default(0) // stock actual, no negativo
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime? // Soft delete
+  categoryId  String?
+  companyId   String
+
+  company     Company   @relation(fields: [companyId], references: [id])
+  category    Category? @relation(fields: [categoryId], references: [id])
+  invoiceItems   InvoiceItem[]
+  orderItems     OrderItem[]
+  images         ProductImage[]   @relation("ProductToImages") // varias imágenes
+  StockMovements StockMovements[]
+
+  @@unique([companyId, sku])
+}
+
+model ProductImage {
+  id        String @id @default(uuid())
+  productId String
+  fileId    String
+
+  product Product @relation("ProductToImages", fields: [productId], references: [id])
+  file    File    @relation("FileToProductImages", fields: [fileId], references: [id])
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  mimeType  String
+  url       String
+  createdAt DateTime @default(now())
+
+  productImages ProductImage[] @relation("FileToProductImages")
+}
+
+model CompanySupplier {
+  id         String     @id @default(uuid())
+  companyId  String
+  supplierId String
+  createdAt  DateTime   @default(now())
+  Company    Company    @relation(fields: [companyId], references: [id])
+  Supplier   Supplier   @relation(fields: [supplierId], references: [id])
+
+  @@unique([companyId, supplierId])
+}
+
+model StockMovements {
+  id        String            @id @default(uuid())
+  companyId String
+  productId String
+  type      StockMovementType
+  qty       Int
+  reason    String?
+  refType   String?
+  refId     String?
+  createdAt DateTime          @default(now())
+  Company   Company           @relation(fields: [companyId], references: [id])
+  Product   Product           @relation(fields: [productId], references: [id])
+}
+
+model Supplier {
+  id              String            @id @default(uuid())
+  name            String
+  email           String            @unique
+  phone           String
+  contactName     String
+  address         String
+  country         Country
+  currency        String[]
+  hasDebt         Boolean           @default(false)
+  pendingGoods    Boolean           @default(false)
+  categoryId      String
+  category        Category          @relation(fields: [categoryId], references: [id])
+  CompanySupplier CompanySupplier[]
+  orders          Order[]
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  phone       String
+  memberSince DateTime @default(now())
+  notes       String?
+  companyId   String
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id])
+  invoices    Invoice[]
+}
+
+/// ================================
+/// Pasarela de pagos
+/// ================================
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String            // referencia al usuario que paga
+  companyId   String?           // opcional: si la transacción está asociada a una empresa
+  type        TransactionType   // SUBSCRIPTION | ONE_TIME | REFUND
+  amount      Int               // en centavos
+  currency    Currency
+  status      TransactionStatus  // PENDING | SUCCESS | FAILED
+  provider    PaymentProvider   // STRIPE, MERCADOPAGO, etc.
+  providerRef String?           // ID devuelto por el proveedor (sessionId, paymentIntentId)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Se pueden registrar tanto pagos de usuarios individuales como de empresas
+  user    User?      @relation(fields: [userId], references: [id])
+  company Company?   @relation(fields: [companyId], references: [id])
+}
+
+model Invoice {
+  id                String       @id @default(uuid())
+  number            String
+  issuedAt          DateTime     @default(now())
+  dueAt             DateTime
+  status            InvoiceStatus @default(PENDING)
+  total             Float
+
+  companyId         String
+  customerId        String
+
+  company           Company      @relation(fields: [companyId], references: [id])
+  customer          Customer     @relation(fields: [customerId], references: [id])
+  items             InvoiceItem[]
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  productId   String
+  description String
+  qty         Int
+  price       Float
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  product     Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id         String      @id @default(uuid())
+  date       DateTime
+  invoiceNumber String  @default("SIN_FACTURA")
+  companyId  String
+  supplierId String
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  supplier   Supplier    @relation(fields: [supplierId], references: [id])
+  items      OrderItem[]
+
+  createdAt  DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+
+/// ================================
+/// Roles and enums
+/// ================================
+enum Role {
+  OWNER
+  EMPLOYEE
+  ADMIN
+}
+
+enum TransactionType {
+  SUBSCRIPTION
+  ONE_TIME
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+}
+
+enum SubscriptionStatus {
+  FREE
+  PREMIUM
+}
+
+enum Currency {
+  USD
+  UYU
+  ARS
+  BRL
+  EUR
+}
+
+enum Country {
+  ARGENTINA
+  URUGUAY
+  CHILE
+}
+
+enum OAuthProvider {
+  GOOGLE
+}
+
+enum InvoiceStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+
+// =================================
+// Soporte y Mensajeria de usuarios
+// =================================
+model Ticket {
+  id                String              @id @default(uuid())
+  title             String
+  description       String
+  priority          Priority            @default(MEDIA)
+  status            Status              @default(ABIERTO)
+  department        Department          @default(TECNICO)
+  
+  // Relaciones
+  userId            String
+  user              User                @relation(fields: [userId], references: [id])
+  assignedAdminId   String?
+  assignedAdmin     Admin?              @relation(fields: [assignedAdminId], references: [id])
+  messages          TicketMessage[]
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  closedAt          DateTime?
+  
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id                String              @id @default(uuid())
+  ticketId          String
+  ticket            Ticket              @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  // Contenido
+  message           String
+  isFromUser        Boolean             // true = usuario, false = admin
+  
+  // Autor (puede ser user o admin)
+  userId            String?
+  user              User?               @relation(fields: [userId], references: [id])
+  adminId           String?
+  admin             Admin?              @relation(fields: [adminId], references: [id])
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  readAt            DateTime?
+  
+  @@map("ticket_messages")
+}
+
+model Admin {
+  id                String              @id @default(uuid())
+  userId            String              @unique // Relación con User
+  role              AdminRole           @default(SUPPORT)
+  department        Department          @default(TECNICO)
+  isActive          Boolean             @default(true)
+  
+  // Relaciones
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedTickets   Ticket[]
+  messages          TicketMessage[]
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@map("admins")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  SUPPORT
+  MANAGER
+}
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum Status {
+  ABIERTO
+  EN_PROCESO
+  ESPERANDO_USUARIO
+  RESUELTO
+  CERRADO
+}
+
+enum Department {
+  TECNICO
+  FINANCIERO
+  ADMINISTRATIVO
+  VENTAS
+}
